@@ -20,7 +20,14 @@ class GRUFused(Function):
 
         ctx.backend.GRUFused_updateOutput(
             ctx.backend.library_state,
-            input_gate, hidden_gate, ibias, hbias, hx, hy, workspace)
+            input_gate,
+            hidden_gate,
+            ibias,
+            hbias,
+            hx,
+            hy,
+            workspace,
+        )
 
         ctx.workspace = workspace
         ctx.igate_size = input_gate.size()
@@ -39,7 +46,12 @@ class GRUFused(Function):
 
         ctx.backend.GRUFused_updateGradInput(
             ctx.backend.library_state,
-            gradInInput, gradInHidden, gradOutput, gradInputHx, ctx.workspace)
+            gradInInput,
+            gradInHidden,
+            gradOutput,
+            gradInputHx,
+            ctx.workspace,
+        )
 
         gb1 = gb2 = None
         if ctx.has_bias:
@@ -65,10 +77,8 @@ class LSTMFused(Function):
 
         # input_gate gets overwritten with some intermediate values to use in backwards
         ctx.backend.LSTMFused_updateOutput(
-            ctx.backend.library_state,
-            input_gate, hidden_gate,
-            ibias, hbias,
-            cx, hy, cy)
+            ctx.backend.library_state, input_gate, hidden_gate, ibias, hbias, cx, hy, cy
+        )
 
         ctx.hgate_size = hidden_gate.size()
         ctx.save_for_backward(input_gate, cx, cy)
@@ -85,8 +95,14 @@ class LSTMFused(Function):
         saved_tens, cx, cy = ctx.saved_tensors
         ctx.backend.LSTMFused_updateGradInput(
             ctx.backend.library_state,
-            saved_tens, gradInGates, cx, cy,
-            gradOutput[0], gradOutput[1], gradInputCx)
+            saved_tens,
+            gradInGates,
+            cx,
+            cy,
+            gradOutput[0],
+            gradOutput[1],
+            gradInputCx,
+        )
 
         gb1 = gb2 = None
         if ctx.has_bias:

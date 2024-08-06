@@ -10,7 +10,9 @@ def _ntuple(n):
         if isinstance(x, collections.Iterable):
             return x
         return tuple(repeat(x, n))
+
     return parse
+
 
 _single = _ntuple(1)
 _pair = _ntuple(2)
@@ -21,6 +23,7 @@ _quadruple = _ntuple(4)
 def freeze_embedding(embedding):
     assert isinstance(embedding, nn.Embedding), "input should be an Embedding module."
     embedding.weight.detach_()
+
 
 def total_grad_norm(parameters, norm_type=2):
     if isinstance(parameters, torch.Tensor):
@@ -34,5 +37,5 @@ def total_grad_norm(parameters, norm_type=2):
         for p in parameters:
             param_norm = p.grad.data.norm(norm_type)
             total_norm += param_norm.item() ** norm_type
-        total_norm = total_norm ** (1. / norm_type)
+        total_norm = total_norm ** (1.0 / norm_type)
     return total_norm

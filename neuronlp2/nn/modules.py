@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 from overrides import overrides
 from collections import OrderedDict
@@ -14,6 +14,7 @@ class BiLinear(nn.Module):
     """
     Bi-linear layer
     """
+
     def __init__(self, left_features, right_features, out_features, bias=True):
         """
 
@@ -29,21 +30,27 @@ class BiLinear(nn.Module):
         self.right_features = right_features
         self.out_features = out_features
 
-        self.U = Parameter(torch.Tensor(self.out_features, self.left_features, self.right_features))
-        self.weight_left = Parameter(torch.Tensor(self.out_features, self.left_features))
-        self.weight_right = Parameter(torch.Tensor(self.out_features, self.right_features))
+        self.U = Parameter(
+            torch.Tensor(self.out_features, self.left_features, self.right_features)
+        )
+        self.weight_left = Parameter(
+            torch.Tensor(self.out_features, self.left_features)
+        )
+        self.weight_right = Parameter(
+            torch.Tensor(self.out_features, self.right_features)
+        )
 
         if bias:
             self.bias = Parameter(torch.Tensor(out_features))
         else:
-            self.register_parameter('bias', None)
+            self.register_parameter("bias", None)
 
         self.reset_parameters()
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.weight_left)
         nn.init.xavier_uniform_(self.weight_right)
-        nn.init.constant_(self.bias, 0.)
+        nn.init.constant_(self.bias, 0.0)
         nn.init.xavier_uniform_(self.U)
 
     def forward(self, input_left, input_right):
@@ -68,24 +75,35 @@ class BiLinear(nn.Module):
 
         # output [batch, out_features]
         output = F.bilinear(input_left, input_right, self.U, self.bias)
-        output = output + F.linear(input_left, self.weight_left, None) + F.linear(input_right, self.weight_right, None)
+        output = (
+            output
+            + F.linear(input_left, self.weight_left, None)
+            + F.linear(input_right, self.weight_right, None)
+        )
         # convert back to [batch1, batch2, ..., out_features]
-        return output.view(batch_size + (self.out_features, ))
+        return output.view(batch_size + (self.out_features,))
 
     def __repr__(self):
-        return self.__class__.__name__ + ' (' \
-               + 'left_features=' + str(self.left_features) \
-               + ', right_features=' + str(self.right_features) \
-               + ', out_features=' + str(self.out_features) + ')'
+        return (
+            self.__class__.__name__
+            + " ("
+            + "left_features="
+            + str(self.left_features)
+            + ", right_features="
+            + str(self.right_features)
+            + ", out_features="
+            + str(self.out_features)
+            + ")"
+        )
 
 
 class BiAffine(nn.Module):
-    '''
+    """
     Bi-Affine energy layer.
-    '''
+    """
 
     def __init__(self, key_dim, query_dim):
-        '''
+        """
 
         Args:
             key_dim: int
@@ -93,7 +111,7 @@ class BiAffine(nn.Module):
             query_dim: int
                 the dimension of the query.
 
-        '''
+        """
         super(BiAffine, self).__init__()
         self.key_dim = key_dim
         self.query_dim = query_dim
@@ -109,7 +127,7 @@ class BiAffine(nn.Module):
         nn.init.uniform_(self.q_weight, -bound, bound)
         bound = 1 / math.sqrt(self.key_dim)
         nn.init.uniform_(self.key_weight, -bound, bound)
-        nn.init.constant_(self.b, 0.)
+        nn.init.constant_(self.b, 0.0)
         nn.init.xavier_uniform_(self.U)
 
     def forward(self, query, key, mask_query=None, mask_key=None):
@@ -155,7 +173,7 @@ class BiAffine(nn.Module):
 
     @overrides
     def extra_repr(self):
-        s = '{key_dim}, {query_dim}'
+        s = "{key_dim}, {query_dim}"
         return s.format(**self.__dict__)
 
 
@@ -163,20 +181,35 @@ class CharCNN(nn.Module):
     """
     CNN layers for characters
     """
-    def __init__(self, num_layers, in_channels, out_channels, hidden_channels=None, activation='elu'):
+
+    def __init__(
+        self,
+        num_layers,
+        in_channels,
+        out_channels,
+        hidden_channels=None,
+        activation="elu",
+    ):
         super(CharCNN, self).__init__()
-        assert activation in ['elu', 'tanh']
-        if activation == 'elu':
+        assert activation in ["elu", "tanh"]
+        if activation == "elu":
             ACT = nn.ELU
         else:
             ACT = nn.Tanh
         layers = list()
         for i in range(num_layers - 1):
-            layers.append(('conv{}'.format(i), nn.Conv1d(in_channels, hidden_channels, kernel_size=3, padding=1)))
-            layers.append(('act{}'.format(i), ACT()))
+            layers.append(
+                (
+                    "conv{}".format(i),
+                    nn.Conv1d(in_channels, hidden_channels, kernel_size=3, padding=1),
+                )
+            )
+            layers.append(("act{}".format(i), ACT()))
             in_channels = hidden_channels
-        layers.append(('conv_top', nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1)))
-        layers.append(('act_top', ACT()))
+        layers.append(
+            ("conv_top", nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1))
+        )
+        layers.append(("act_top", ACT()))
         self.act = ACT
         self.net = nn.Sequential(OrderedDict(layers))
 
@@ -186,7 +219,7 @@ class CharCNN(nn.Module):
         for layer in self.net:
             if isinstance(layer, nn.Conv1d):
                 nn.init.xavier_uniform_(layer.weight)
-                nn.init.constant_(layer.bias, 0.)
+                nn.init.constant_(layer.bias, 0.0)
             else:
                 assert isinstance(layer, self.act)
 

@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 from overrides import overrides
 import torch
@@ -8,38 +8,67 @@ from neuronlp2.nn import ChainCRF, VarGRU, VarRNN, VarLSTM, VarFastLSTM, CharCNN
 
 
 class BiRecurrentConv(nn.Module):
-    def __init__(self, word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                 num_labels, embedd_word=None, embedd_char=None, p_in=0.33, p_out=0.5, p_rnn=(0.5, 0.5), activation='elu'):
+    def __init__(
+        self,
+        word_dim,
+        num_words,
+        char_dim,
+        num_chars,
+        rnn_mode,
+        hidden_size,
+        out_features,
+        num_layers,
+        num_labels,
+        embedd_word=None,
+        embedd_char=None,
+        p_in=0.33,
+        p_out=0.5,
+        p_rnn=(0.5, 0.5),
+        activation="elu",
+    ):
         super(BiRecurrentConv, self).__init__()
 
-        self.word_embed = nn.Embedding(num_words, word_dim, _weight=embedd_word, padding_idx=1)
-        self.char_embed = nn.Embedding(num_chars, char_dim, _weight=embedd_char, padding_idx=1)
-        self.char_cnn = CharCNN(2, char_dim, char_dim, hidden_channels=4 * char_dim, activation=activation)
+        self.word_embed = nn.Embedding(
+            num_words, word_dim, _weight=embedd_word, padding_idx=1
+        )
+        self.char_embed = nn.Embedding(
+            num_chars, char_dim, _weight=embedd_char, padding_idx=1
+        )
+        self.char_cnn = CharCNN(
+            2, char_dim, char_dim, hidden_channels=4 * char_dim, activation=activation
+        )
         # dropout word
         self.dropout_in = nn.Dropout2d(p=p_in)
         # standard dropout
         self.dropout_rnn_in = nn.Dropout(p=p_rnn[0])
         self.dropout_out = nn.Dropout(p_out)
 
-        if rnn_mode == 'RNN':
+        if rnn_mode == "RNN":
             RNN = nn.RNN
-        elif rnn_mode == 'LSTM' or rnn_mode == 'FastLSTM':
+        elif rnn_mode == "LSTM" or rnn_mode == "FastLSTM":
             RNN = nn.LSTM
-        elif rnn_mode == 'GRU':
+        elif rnn_mode == "GRU":
             RNN = nn.GRU
         else:
-            raise ValueError('Unknown RNN mode: %s' % rnn_mode)
+            raise ValueError("Unknown RNN mode: %s" % rnn_mode)
 
-        self.rnn = RNN(word_dim + char_dim, hidden_size, num_layers=num_layers, batch_first=True, bidirectional=True, dropout=p_rnn[1])
+        self.rnn = RNN(
+            word_dim + char_dim,
+            hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=p_rnn[1],
+        )
 
         self.fc = nn.Linear(hidden_size * 2, out_features)
-        assert activation in ['elu', 'tanh']
-        if activation == 'elu':
+        assert activation in ["elu", "tanh"]
+        if activation == "elu":
             self.activation = nn.ELU()
         else:
             self.activation = nn.Tanh()
         self.readout = nn.Linear(out_features, num_labels)
-        self.criterion = nn.CrossEntropyLoss(reduction='none')
+        self.criterion = nn.CrossEntropyLoss(reduction="none")
 
         self.reset_parameters(embedd_word, embedd_char)
 
@@ -59,10 +88,10 @@ class BiRecurrentConv(nn.Module):
                 nn.init.xavier_uniform_(param)
 
         nn.init.xavier_uniform_(self.fc.weight)
-        nn.init.constant_(self.fc.bias, 0.)
+        nn.init.constant_(self.fc.bias, 0.0)
 
         nn.init.uniform_(self.readout.weight, -0.1, 0.1)
-        nn.init.constant_(self.readout.bias, 0.)
+        nn.init.constant_(self.readout.bias, 0.0)
 
     def _get_rnn_output(self, input_word, input_char, mask=None):
         # [batch, length, word_dim]
@@ -84,7 +113,9 @@ class BiRecurrentConv(nn.Module):
         if mask is not None:
             # prepare packed_sequence
             length = mask.sum(dim=1).long()
-            packed_enc = pack_padded_sequence(enc, length, batch_first=True, enforce_sorted=False)
+            packed_enc = pack_padded_sequence(
+                enc, length, batch_first=True, enforce_sorted=False
+            )
             packed_out, _ = self.rnn(packed_enc)
             output, _ = pad_packed_sequence(packed_out, batch_first=True)
         else:
@@ -127,27 +158,64 @@ class BiRecurrentConv(nn.Module):
 
 
 class BiVarRecurrentConv(BiRecurrentConv):
-    def __init__(self, word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                 num_labels, embedd_word=None, embedd_char=None, p_in=0.33, p_out=0.33, p_rnn=(0.33, 0.33), activation='elu'):
-        super(BiVarRecurrentConv, self).__init__(word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                                                 num_labels, embedd_word=embedd_word, embedd_char=embedd_char,
-                                                 p_in=p_in, p_out=p_out, p_rnn=p_rnn, activation=activation)
+    def __init__(
+        self,
+        word_dim,
+        num_words,
+        char_dim,
+        num_chars,
+        rnn_mode,
+        hidden_size,
+        out_features,
+        num_layers,
+        num_labels,
+        embedd_word=None,
+        embedd_char=None,
+        p_in=0.33,
+        p_out=0.33,
+        p_rnn=(0.33, 0.33),
+        activation="elu",
+    ):
+        super(BiVarRecurrentConv, self).__init__(
+            word_dim,
+            num_words,
+            char_dim,
+            num_chars,
+            rnn_mode,
+            hidden_size,
+            out_features,
+            num_layers,
+            num_labels,
+            embedd_word=embedd_word,
+            embedd_char=embedd_char,
+            p_in=p_in,
+            p_out=p_out,
+            p_rnn=p_rnn,
+            activation=activation,
+        )
 
         self.dropout_rnn_in = None
         self.dropout_out = nn.Dropout2d(p_out)
 
-        if rnn_mode == 'RNN':
+        if rnn_mode == "RNN":
             RNN = VarRNN
-        elif rnn_mode == 'LSTM':
+        elif rnn_mode == "LSTM":
             RNN = VarLSTM
-        elif rnn_mode == 'FastLSTM':
+        elif rnn_mode == "FastLSTM":
             RNN = VarFastLSTM
-        elif rnn_mode == 'GRU':
+        elif rnn_mode == "GRU":
             RNN = VarGRU
         else:
-            raise ValueError('Unknown RNN mode: %s' % rnn_mode)
+            raise ValueError("Unknown RNN mode: %s" % rnn_mode)
 
-        self.rnn = RNN(word_dim + char_dim, hidden_size, num_layers=num_layers, batch_first=True, bidirectional=True, dropout=p_rnn)
+        self.rnn = RNN(
+            word_dim + char_dim,
+            hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=p_rnn,
+        )
 
     @overrides
     def _get_rnn_output(self, input_word, input_char, mask=None):
@@ -177,11 +245,42 @@ class BiVarRecurrentConv(BiRecurrentConv):
 
 
 class BiRecurrentConvCRF(BiRecurrentConv):
-    def __init__(self, word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                 num_labels, embedd_word=None, embedd_char=None, p_in=0.33, p_out=0.5, p_rnn=(0.5, 0.5), bigram=False, activation='elu'):
-        super(BiRecurrentConvCRF, self).__init__(word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                                                 num_labels, embedd_word=embedd_word, embedd_char=embedd_char,
-                                                 p_in=p_in, p_out=p_out, p_rnn=p_rnn, activation=activation)
+    def __init__(
+        self,
+        word_dim,
+        num_words,
+        char_dim,
+        num_chars,
+        rnn_mode,
+        hidden_size,
+        out_features,
+        num_layers,
+        num_labels,
+        embedd_word=None,
+        embedd_char=None,
+        p_in=0.33,
+        p_out=0.5,
+        p_rnn=(0.5, 0.5),
+        bigram=False,
+        activation="elu",
+    ):
+        super(BiRecurrentConvCRF, self).__init__(
+            word_dim,
+            num_words,
+            char_dim,
+            num_chars,
+            rnn_mode,
+            hidden_size,
+            out_features,
+            num_layers,
+            num_labels,
+            embedd_word=embedd_word,
+            embedd_char=embedd_char,
+            p_in=p_in,
+            p_out=p_out,
+            p_rnn=p_rnn,
+            activation=activation,
+        )
 
         self.crf = ChainCRF(out_features, num_labels, bigram=bigram)
         self.readout = None
@@ -212,11 +311,42 @@ class BiRecurrentConvCRF(BiRecurrentConv):
 
 
 class BiVarRecurrentConvCRF(BiVarRecurrentConv):
-    def __init__(self, word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                 num_labels, embedd_word=None, embedd_char=None, p_in=0.33, p_out=0.33, p_rnn=(0.33, 0.33), bigram=False, activation='elu'):
-        super(BiVarRecurrentConvCRF, self).__init__(word_dim, num_words, char_dim, num_chars, rnn_mode, hidden_size, out_features, num_layers,
-                                                    num_labels, embedd_word=embedd_word, embedd_char=embedd_char,
-                                                    p_in=p_in, p_out=p_out, p_rnn=p_rnn, activation=activation)
+    def __init__(
+        self,
+        word_dim,
+        num_words,
+        char_dim,
+        num_chars,
+        rnn_mode,
+        hidden_size,
+        out_features,
+        num_layers,
+        num_labels,
+        embedd_word=None,
+        embedd_char=None,
+        p_in=0.33,
+        p_out=0.33,
+        p_rnn=(0.33, 0.33),
+        bigram=False,
+        activation="elu",
+    ):
+        super(BiVarRecurrentConvCRF, self).__init__(
+            word_dim,
+            num_words,
+            char_dim,
+            num_chars,
+            rnn_mode,
+            hidden_size,
+            out_features,
+            num_layers,
+            num_labels,
+            embedd_word=embedd_word,
+            embedd_char=embedd_char,
+            p_in=p_in,
+            p_out=p_out,
+            p_rnn=p_rnn,
+            activation=activation,
+        )
 
         self.crf = ChainCRF(out_features, num_labels, bigram=bigram)
         self.readout = None

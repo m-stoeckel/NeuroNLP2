@@ -1,8 +1,10 @@
-__author__ = 'max'
+__author__ = "max"
 
 
 class CoNLL03Writer(object):
-    def __init__(self, word_alphabet, char_alphabet, pos_alphabet, chunk_alphabet, ner_alphabet):
+    def __init__(
+        self, word_alphabet, char_alphabet, pos_alphabet, chunk_alphabet, ner_alphabet
+    ):
         self.__source_file = None
         self.__word_alphabet = word_alphabet
         self.__char_alphabet = char_alphabet
@@ -11,7 +13,7 @@ class CoNLL03Writer(object):
         self.__ner_alphabet = ner_alphabet
 
     def start(self, file_path):
-        self.__source_file = open(file_path, 'w')
+        self.__source_file = open(file_path, "w")
 
     def close(self):
         self.__source_file.close()
@@ -25,8 +27,10 @@ class CoNLL03Writer(object):
                 ch = self.__chunk_alphabet.get_instance(chunk[i, j])
                 tgt = self.__ner_alphabet.get_instance(targets[i, j])
                 pred = self.__ner_alphabet.get_instance(predictions[i, j])
-                self.__source_file.write('%d %s %s %s %s %s\n' % (j + 1, w, p, ch, tgt, pred))
-            self.__source_file.write('\n')
+                self.__source_file.write(
+                    "%d %s %s %s %s %s\n" % (j + 1, w, p, ch, tgt, pred)
+                )
+            self.__source_file.write("\n")
 
 
 class POSWriter(object):
@@ -37,12 +41,20 @@ class POSWriter(object):
         self.__pos_alphabet = pos_alphabet
 
     def start(self, file_path):
-        self.__source_file = open(file_path, 'w')
+        self.__source_file = open(file_path, "w")
 
     def close(self):
         self.__source_file.close()
 
-    def write(self, word, predictions, targets, lengths, symbolic_root=False, symbolic_end=False):
+    def write(
+        self,
+        word,
+        predictions,
+        targets,
+        lengths,
+        symbolic_root=False,
+        symbolic_end=False,
+    ):
         batch_size, _ = word.shape
         start = 1 if symbolic_root else 0
         end = 1 if symbolic_end else 0
@@ -51,8 +63,8 @@ class POSWriter(object):
                 w = self.__word_alphabet.get_instance(word[i, j])
                 pred = self.__pos_alphabet.get_instance(predictions[i, j])
                 tgt = self.__pos_alphabet.get_instance(targets[i, j])
-                self.__source_file.write('%d\t%s\t_\t%s\t%s\n' % (j, w, tgt, pred))
-            self.__source_file.write('\n')
+                self.__source_file.write("%d\t%s\t_\t%s\t%s\n" % (j, w, tgt, pred))
+            self.__source_file.write("\n")
 
 
 class CoNLLXWriter(object):
@@ -64,12 +76,14 @@ class CoNLLXWriter(object):
         self.__type_alphabet = type_alphabet
 
     def start(self, file_path):
-        self.__source_file = open(file_path, 'w')
+        self.__source_file = open(file_path, "w")
 
     def close(self):
         self.__source_file.close()
 
-    def write(self, word, pos, head, type, lengths, symbolic_root=False, symbolic_end=False):
+    def write(
+        self, word, pos, head, type, lengths, symbolic_root=False, symbolic_end=False
+    ):
         batch_size, _ = word.shape
         start = 1 if symbolic_root else 0
         end = 1 if symbolic_end else 0
@@ -79,5 +93,7 @@ class CoNLLXWriter(object):
                 p = self.__pos_alphabet.get_instance(pos[i, j])
                 t = self.__type_alphabet.get_instance(type[i, j])
                 h = head[i, j]
-                self.__source_file.write('%d\t%s\t_\t_\t%s\t_\t%d\t%s\n' % (j, w, p, h, t))
-            self.__source_file.write('\n')
+                self.__source_file.write(
+                    "%d\t%s\t_\t_\t%s\t_\t%d\t%s\n" % (j, w, p, h, t)
+                )
+            self.__source_file.write("\n")

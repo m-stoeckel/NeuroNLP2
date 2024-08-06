@@ -1,3 +1,6 @@
-__author__ = 'max'
+__author__ = "max"
 
-from neuronlp2.optim.lr_scheduler import InverseSquareRootScheduler, ExponentialScheduler
+from neuronlp2.optim.lr_scheduler import (
+    InverseSquareRootScheduler,
+    ExponentialScheduler,
+)

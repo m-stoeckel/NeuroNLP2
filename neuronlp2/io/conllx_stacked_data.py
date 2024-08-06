@@ -1,12 +1,29 @@
-__author__ = 'max'
+__author__ = "max"
 
 import numpy as np
 import torch
 from neuronlp2.io.reader import CoNLLXReader
 from neuronlp2.io.conllx_data import _buckets, NUM_SYMBOLIC_TAGS, create_alphabets
 from neuronlp2.io.common import DIGIT_RE, MAX_CHAR_LENGTH, UNK_ID
-from neuronlp2.io.common import PAD_CHAR, PAD, PAD_POS, PAD_TYPE, PAD_ID_CHAR, PAD_ID_TAG, PAD_ID_WORD
-from neuronlp2.io.common import ROOT, END, ROOT_CHAR, ROOT_POS, ROOT_TYPE, END_CHAR, END_POS, END_TYPE
+from neuronlp2.io.common import (
+    PAD_CHAR,
+    PAD,
+    PAD_POS,
+    PAD_TYPE,
+    PAD_ID_CHAR,
+    PAD_ID_TAG,
+    PAD_ID_WORD,
+)
+from neuronlp2.io.common import (
+    ROOT,
+    END,
+    ROOT_CHAR,
+    ROOT_POS,
+    ROOT_TYPE,
+    END_CHAR,
+    END_POS,
+    END_TYPE,
+)
 
 
 def _obtain_child_index_for_left2right(heads):
@@ -40,26 +57,30 @@ def _obtain_child_index_for_depth(heads, reverse):
             depth = calc_depth(child)
             child_with_depth[head].append((child, depth))
             max_depth = max(max_depth, depth + 1)
-        child_with_depth[head] = sorted(child_with_depth[head], key=lambda x: x[1], reverse=reverse)
+        child_with_depth[head] = sorted(
+            child_with_depth[head], key=lambda x: x[1], reverse=reverse
+        )
         return max_depth
 
     child_ids = _obtain_child_index_for_left2right(heads)
     child_with_depth = [[] for _ in range(len(heads))]
     calc_depth(0)
-    return [[child for child, depth in child_with_depth[head]] for head in range(len(heads))]
+    return [
+        [child for child, depth in child_with_depth[head]] for head in range(len(heads))
+    ]
 
 
 def _generate_stack_inputs(heads, types, prior_order):
-    if prior_order == 'deep_first':
+    if prior_order == "deep_first":
         child_ids = _obtain_child_index_for_depth(heads, True)
-    elif prior_order == 'shallow_first':
+    elif prior_order == "shallow_first":
         child_ids = _obtain_child_index_for_depth(heads, False)
-    elif prior_order == 'left2right':
+    elif prior_order == "left2right":
         child_ids = _obtain_child_index_for_left2right(heads)
-    elif prior_order == 'inside_out':
+    elif prior_order == "inside_out":
         child_ids = _obtain_child_index_for_inside_out(heads)
     else:
-        raise ValueError('Unknown prior order: %s' % prior_order)
+        raise ValueError("Unknown prior order: %s" % prior_order)
 
     stacked_heads = []
     children = []
@@ -93,29 +114,58 @@ def _generate_stack_inputs(heads, types, prior_order):
     return stacked_heads, children, siblings, stacked_types, skip_connect
 
 
-def read_data(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet,
-              max_size=None, normalize_digits=True, prior_order='inside_out'):
+def read_data(
+    source_path,
+    word_alphabet,
+    char_alphabet,
+    pos_alphabet,
+    type_alphabet,
+    max_size=None,
+    normalize_digits=True,
+    prior_order="inside_out",
+):
     data = []
     max_length = 0
     max_char_length = 0
-    print('Reading data from %s' % source_path)
+    print("Reading data from %s" % source_path)
     counter = 0
-    reader = CoNLLXReader(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet)
-    inst = reader.getNext(normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False)
+    reader = CoNLLXReader(
+        source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet
+    )
+    inst = reader.getNext(
+        normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False
+    )
     while inst is not None and (not max_size or counter < max_size):
         counter += 1
         if counter % 10000 == 0:
             print("reading data: %d" % counter)
 
         sent = inst.sentence
-        stacked_heads, children, siblings, stacked_types, skip_connect = _generate_stack_inputs(inst.heads, inst.type_ids, prior_order)
-        data.append([sent.word_ids, sent.char_id_seqs, inst.pos_ids, inst.heads, inst.type_ids, stacked_heads, children, siblings, stacked_types, skip_connect])
+        stacked_heads, children, siblings, stacked_types, skip_connect = (
+            _generate_stack_inputs(inst.heads, inst.type_ids, prior_order)
+        )
+        data.append(
+            [
+                sent.word_ids,
+                sent.char_id_seqs,
+                inst.pos_ids,
+                inst.heads,
+                inst.type_ids,
+                stacked_heads,
+                children,
+                siblings,
+                stacked_types,
+                skip_connect,
+            ]
+        )
         max_len = max([len(char_seq) for char_seq in sent.char_seqs])
         if max_char_length < max_len:
             max_char_length = max_len
         if max_length < inst.length():
             max_length = inst.length()
-        inst = reader.getNext(normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False)
+        inst = reader.getNext(
+            normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False
+        )
     reader.close()
     print("Total number of data: %d" % counter)
 
@@ -140,15 +190,26 @@ def read_data(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alph
     masks_d = np.zeros([data_size, 2 * max_length - 1], dtype=np.float32)
 
     for i, inst in enumerate(data):
-        wids, cid_seqs, pids, hids, tids, stack_hids, chids, ssids, stack_tids, skip_ids = inst
+        (
+            wids,
+            cid_seqs,
+            pids,
+            hids,
+            tids,
+            stack_hids,
+            chids,
+            ssids,
+            stack_tids,
+            skip_ids,
+        ) = inst
         inst_size = len(wids)
         lengths[i] = inst_size
         # word ids
         wid_inputs[i, :inst_size] = wids
         wid_inputs[i, inst_size:] = PAD_ID_WORD
         for c, cids in enumerate(cid_seqs):
-            cid_inputs[i, c, :len(cids)] = cids
-            cid_inputs[i, c, len(cids):] = PAD_ID_CHAR
+            cid_inputs[i, c, : len(cids)] = cids
+            cid_inputs[i, c, len(cids) :] = PAD_ID_CHAR
         cid_inputs[i, inst_size:, :] = PAD_ID_CHAR
         # pos ids
         pid_inputs[i, :inst_size] = pids
@@ -200,20 +261,45 @@ def read_data(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alph
     skip_connect = torch.from_numpy(skip_connect_inputs)
     masks_d = torch.from_numpy(masks_d)
 
-    data_tensor = {'WORD': words, 'CHAR': chars, 'POS': pos, 'HEAD': heads, 'TYPE': types, 'MASK_ENC': masks_e,
-                   'SINGLE': single, 'LENGTH': lengths, 'STACK_HEAD': stacked_heads, 'CHILD': children,
-                   'SIBLING': siblings, 'STACK_TYPE': stacked_types, 'SKIP_CONNECT': skip_connect, 'MASK_DEC': masks_d}
+    data_tensor = {
+        "WORD": words,
+        "CHAR": chars,
+        "POS": pos,
+        "HEAD": heads,
+        "TYPE": types,
+        "MASK_ENC": masks_e,
+        "SINGLE": single,
+        "LENGTH": lengths,
+        "STACK_HEAD": stacked_heads,
+        "CHILD": children,
+        "SIBLING": siblings,
+        "STACK_TYPE": stacked_types,
+        "SKIP_CONNECT": skip_connect,
+        "MASK_DEC": masks_d,
+    }
     return data_tensor, data_size
 
 
-def read_bucketed_data(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet,
-                       max_size=None, normalize_digits=True, prior_order='inside_out'):
+def read_bucketed_data(
+    source_path,
+    word_alphabet,
+    char_alphabet,
+    pos_alphabet,
+    type_alphabet,
+    max_size=None,
+    normalize_digits=True,
+    prior_order="inside_out",
+):
     data = [[] for _ in _buckets]
     max_char_length = [0 for _ in _buckets]
-    print('Reading data from %s' % source_path)
+    print("Reading data from %s" % source_path)
     counter = 0
-    reader = CoNLLXReader(source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet)
-    inst = reader.getNext(normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False)
+    reader = CoNLLXReader(
+        source_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet
+    )
+    inst = reader.getNext(
+        normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False
+    )
     while inst is not None and (not max_size or counter < max_size):
         counter += 1
         if counter % 10000 == 0:
@@ -223,14 +309,31 @@ def read_bucketed_data(source_path, word_alphabet, char_alphabet, pos_alphabet, 
         sent = inst.sentence
         for bucket_id, bucket_size in enumerate(_buckets):
             if inst_size < bucket_size:
-                stacked_heads, children, siblings, stacked_types, skip_connect = _generate_stack_inputs(inst.heads, inst.type_ids, prior_order)
-                data[bucket_id].append([sent.word_ids, sent.char_id_seqs, inst.pos_ids, inst.heads, inst.type_ids, stacked_heads, children, siblings, stacked_types, skip_connect])
+                stacked_heads, children, siblings, stacked_types, skip_connect = (
+                    _generate_stack_inputs(inst.heads, inst.type_ids, prior_order)
+                )
+                data[bucket_id].append(
+                    [
+                        sent.word_ids,
+                        sent.char_id_seqs,
+                        inst.pos_ids,
+                        inst.heads,
+                        inst.type_ids,
+                        stacked_heads,
+                        children,
+                        siblings,
+                        stacked_types,
+                        skip_connect,
+                    ]
+                )
                 max_len = max([len(char_seq) for char_seq in sent.char_seqs])
                 if max_char_length[bucket_id] < max_len:
                     max_char_length[bucket_id] = max_len
                 break
 
-        inst = reader.getNext(normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False)
+        inst = reader.getNext(
+            normalize_digits=normalize_digits, symbolic_root=True, symbolic_end=False
+        )
     reader.close()
     print("Total number of data: %d" % counter)
 
@@ -254,24 +357,41 @@ def read_bucketed_data(source_path, word_alphabet, char_alphabet, pos_alphabet, 
         single = np.zeros([bucket_size, bucket_length], dtype=np.int64)
         lengths = np.empty(bucket_size, dtype=np.int64)
 
-        stack_hid_inputs = np.empty([bucket_size, 2 * bucket_length - 1], dtype=np.int64)
+        stack_hid_inputs = np.empty(
+            [bucket_size, 2 * bucket_length - 1], dtype=np.int64
+        )
         chid_inputs = np.empty([bucket_size, 2 * bucket_length - 1], dtype=np.int64)
         ssid_inputs = np.empty([bucket_size, 2 * bucket_length - 1], dtype=np.int64)
-        stack_tid_inputs = np.empty([bucket_size, 2 * bucket_length - 1], dtype=np.int64)
-        skip_connect_inputs = np.empty([bucket_size, 2 * bucket_length - 1], dtype=np.int64)
+        stack_tid_inputs = np.empty(
+            [bucket_size, 2 * bucket_length - 1], dtype=np.int64
+        )
+        skip_connect_inputs = np.empty(
+            [bucket_size, 2 * bucket_length - 1], dtype=np.int64
+        )
 
         masks_d = np.zeros([bucket_size, 2 * bucket_length - 1], dtype=np.float32)
 
         for i, inst in enumerate(data[bucket_id]):
-            wids, cid_seqs, pids, hids, tids, stack_hids, chids, ssids, stack_tids, skip_ids = inst
+            (
+                wids,
+                cid_seqs,
+                pids,
+                hids,
+                tids,
+                stack_hids,
+                chids,
+                ssids,
+                stack_tids,
+                skip_ids,
+            ) = inst
             inst_size = len(wids)
             lengths[i] = inst_size
             # word ids
             wid_inputs[i, :inst_size] = wids
             wid_inputs[i, inst_size:] = PAD_ID_WORD
             for c, cids in enumerate(cid_seqs):
-                cid_inputs[i, c, :len(cids)] = cids
-                cid_inputs[i, c, len(cids):] = PAD_ID_CHAR
+                cid_inputs[i, c, : len(cids)] = cids
+                cid_inputs[i, c, len(cids) :] = PAD_ID_CHAR
             cid_inputs[i, inst_size:, :] = PAD_ID_CHAR
             # pos ids
             pid_inputs[i, :inst_size] = pids
@@ -323,9 +443,22 @@ def read_bucketed_data(source_path, word_alphabet, char_alphabet, pos_alphabet, 
         skip_connect = torch.from_numpy(skip_connect_inputs)
         masks_d = torch.from_numpy(masks_d)
 
-        data_tensor = {'WORD': words, 'CHAR': chars, 'POS': pos, 'HEAD': heads, 'TYPE': types, 'MASK_ENC': masks_e,
-                       'SINGLE': single, 'LENGTH': lengths, 'STACK_HEAD': stacked_heads, 'CHILD': children,
-                       'SIBLING': siblings, 'STACK_TYPE': stacked_types, 'SKIP_CONNECT': skip_connect, 'MASK_DEC': masks_d}
+        data_tensor = {
+            "WORD": words,
+            "CHAR": chars,
+            "POS": pos,
+            "HEAD": heads,
+            "TYPE": types,
+            "MASK_ENC": masks_e,
+            "SINGLE": single,
+            "LENGTH": lengths,
+            "STACK_HEAD": stacked_heads,
+            "CHILD": children,
+            "SIBLING": siblings,
+            "STACK_TYPE": stacked_types,
+            "SKIP_CONNECT": skip_connect,
+            "MASK_DEC": masks_d,
+        }
         data_tensors.append(data_tensor)
 
     return data_tensors, bucket_sizes

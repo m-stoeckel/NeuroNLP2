@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 import numpy as np
 import torch
@@ -9,7 +9,7 @@ from neuronlp2.nn.modules import BiAffine
 
 class ChainCRF(nn.Module):
     def __init__(self, input_size, num_labels, bigram=True):
-        '''
+        """
 
         Args:
             input_size: int
@@ -18,36 +18,39 @@ class ChainCRF(nn.Module):
                 the number of labels of the crf layer
             bigram: bool
                 if apply bi-gram parameter.
-        '''
+        """
         super(ChainCRF, self).__init__()
         self.input_size = input_size
         self.num_labels = num_labels + 1
         self.pad_label_id = num_labels
         self.bigram = bigram
 
-
         # state weight tensor
         self.state_net = nn.Linear(input_size, self.num_labels)
         if bigram:
             # transition weight tensor
-            self.transition_net = nn.Linear(input_size, self.num_labels * self.num_labels)
-            self.register_parameter('transition_matrix', None)
+            self.transition_net = nn.Linear(
+                input_size, self.num_labels * self.num_labels
+            )
+            self.register_parameter("transition_matrix", None)
         else:
             self.transition_net = None
-            self.transition_matrix = Parameter(torch.Tensor(self.num_labels, self.num_labels))
+            self.transition_matrix = Parameter(
+                torch.Tensor(self.num_labels, self.num_labels)
+            )
 
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.constant_(self.state_net.bias, 0.)
+        nn.init.constant_(self.state_net.bias, 0.0)
         if self.bigram:
             nn.init.xavier_uniform_(self.transition_net.weight)
-            nn.init.constant_(self.transition_net.bias, 0.)
+            nn.init.constant_(self.transition_net.bias, 0.0)
         else:
             nn.init.normal_(self.transition_matrix)
 
     def forward(self, input, mask=None):
-        '''
+        """
 
         Args:
             input: Tensor
@@ -58,7 +61,7 @@ class ChainCRF(nn.Module):
         Returns: Tensor
             the energy tensor with shape = [batch, length, num_label, num_label]
 
-        '''
+        """
         batch, length, _ = input.size()
 
         # compute out_s by tensor dot [batch, length, model_dim] * [model_dim, num_label]
@@ -68,7 +71,9 @@ class ChainCRF(nn.Module):
         if self.bigram:
             # compute out_s by tensor dot: [batch, length, model_dim] * [model_dim, num_label * num_label]
             # the output should be [batch, length, num_label,  num_label]
-            out_t = self.transition_net(input).view(batch, length, self.num_labels, self.num_labels)
+            out_t = self.transition_net(input).view(
+                batch, length, self.num_labels, self.num_labels
+            )
             output = out_t + out_s
         else:
             # [batch, length, num_label, num_label]
@@ -80,7 +85,7 @@ class ChainCRF(nn.Module):
         return output
 
     def loss(self, input, target, mask=None):
-        '''
+        """
 
         Args:
             input: Tensor
@@ -92,7 +97,7 @@ class ChainCRF(nn.Module):
 
         Returns: Tensor
                 A 1D tensor for minus log likelihood loss [batch]
-        '''
+        """
         batch, length, _ = input.size()
         energy = self(input, mask=mask)
         # shape = [length, batch, num_label, num_label]
@@ -109,7 +114,7 @@ class ChainCRF(nn.Module):
 
         # shape = [batch]
         batch_index = torch.arange(0, batch).type_as(input).long()
-        prev_label = input.new_full((batch, ), self.num_labels - 1).long()
+        prev_label = input.new_full((batch,), self.num_labels - 1).long()
         tgt_energy = input.new_zeros(batch)
 
         for t in range(length):
@@ -119,7 +124,9 @@ class ChainCRF(nn.Module):
                 partition = curr_energy[:, -1, :]
             else:
                 # shape = [batch, num_label]
-                partition_new = torch.logsumexp(curr_energy + partition.unsqueeze(2), dim=1)
+                partition_new = torch.logsumexp(
+                    curr_energy + partition.unsqueeze(2), dim=1
+                )
                 if mask_transpose is None:
                     partition = partition_new
                 else:
@@ -155,7 +162,9 @@ class ChainCRF(nn.Module):
         # the last row and column is the tag for pad symbol. reduce these two dimensions by 1 to remove that.
         # also remove the first #symbolic rows and columns.
         # now the shape of energies_shuffled is [n_time_steps, b_batch, t, t] where t = num_labels - #symbolic - 1.
-        energy_transpose = energy_transpose[:, :, leading_symbolic:-1, leading_symbolic:-1]
+        energy_transpose = energy_transpose[
+            :, :, leading_symbolic:-1, leading_symbolic:-1
+        ]
 
         length, batch_size, num_label, _ = energy_transpose.size()
 
@@ -168,7 +177,9 @@ class ChainCRF(nn.Module):
         pointer[0] = -1
         for t in range(1, length):
             pi_prev = pi[t - 1]
-            pi[t], pointer[t] = torch.max(energy_transpose[t] + pi_prev.unsqueeze(2), dim=1)
+            pi[t], pointer[t] = torch.max(
+                energy_transpose[t] + pi_prev.unsqueeze(2), dim=1
+            )
 
         _, back_pointer[-1] = torch.max(pi[-1], dim=1)
         for t in reversed(range(length - 1)):
@@ -179,9 +190,10 @@ class ChainCRF(nn.Module):
 
 
 class TreeCRF(nn.Module):
-    '''
+    """
     Tree CRF layer.
-    '''
+    """
+
     def __init__(self, model_dim):
         """
 
@@ -195,7 +207,7 @@ class TreeCRF(nn.Module):
         self.energy = BiAffine(model_dim, model_dim)
 
     def forward(self, heads, children, mask=None):
-        '''
+        """
 
         Args:
             heads: Tensor
@@ -210,14 +222,14 @@ class TreeCRF(nn.Module):
         Returns: Tensor
             the energy tensor with shape = [batch, length, length]
 
-        '''
+        """
         batch, length, _ = heads.size()
         # [batch, length, length]
         output = self.energy(heads, children, mask_query=mask, mask_key=mask)
         return output
 
     def loss(self, heads, children, target_heads, mask=None):
-        '''
+        """
 
         Args:
             heads: Tensor
@@ -231,7 +243,7 @@ class TreeCRF(nn.Module):
 
         Returns: Tensor
                 A 1D tensor for minus log likelihood loss
-        '''
+        """
         batch, length, _ = heads.size()
         # [batch, length, length]
         energy = self(heads, children, mask=mask).double()
@@ -262,7 +274,7 @@ class TreeCRF(nn.Module):
         L = D - A
 
         if mask is not None:
-            L = L + torch.diag_embed(1. - mask)
+            L = L + torch.diag_embed(1.0 - mask)
 
         # compute partition Z(x) [batch]
         L = L[:, 1:, 1:]

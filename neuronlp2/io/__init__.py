@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 from neuronlp2.io.alphabet import Alphabet
 from neuronlp2.io.instance import *

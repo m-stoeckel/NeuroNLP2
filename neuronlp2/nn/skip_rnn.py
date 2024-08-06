@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 import torch
 import torch.nn as nn
@@ -8,9 +8,18 @@ from neuronlp2.nn.variational_rnn import VarRNNCellBase
 
 
 class VarSkipRNNBase(nn.Module):
-    def __init__(self, Cell, input_size, hidden_size,
-                 num_layers=1, bias=True, batch_first=False,
-                 dropout=(0, 0), bidirectional=False, **kwargs):
+    def __init__(
+        self,
+        Cell,
+        input_size,
+        hidden_size,
+        num_layers=1,
+        bias=True,
+        batch_first=False,
+        dropout=(0, 0),
+        bidirectional=False,
+        **kwargs
+    ):
 
         super(VarSkipRNNBase, self).__init__()
         self.Cell = Cell
@@ -26,11 +35,15 @@ class VarSkipRNNBase(nn.Module):
         self.all_cells = []
         for layer in range(num_layers):
             for direction in range(num_directions):
-                layer_input_size = input_size if layer == 0 else hidden_size * num_directions
+                layer_input_size = (
+                    input_size if layer == 0 else hidden_size * num_directions
+                )
 
-                cell = self.Cell(layer_input_size, hidden_size, self.bias, p=dropout, **kwargs)
+                cell = self.Cell(
+                    layer_input_size, hidden_size, self.bias, p=dropout, **kwargs
+                )
                 self.all_cells.append(cell)
-                self.add_module('cell%d' % (layer * num_directions + direction), cell)
+                self.add_module("cell%d" % (layer * num_directions + direction), cell)
 
     def reset_parameters(self):
         for cell in self.all_cells:
@@ -44,21 +57,31 @@ class VarSkipRNNBase(nn.Module):
         batch_size = input.size(0) if self.batch_first else input.size(1)
         if hx is None:
             num_directions = 2 if self.bidirectional else 1
-            hx = input.new_zeros(self.num_layers * num_directions, batch_size, self.hidden_size)
+            hx = input.new_zeros(
+                self.num_layers * num_directions, batch_size, self.hidden_size
+            )
             if self.lstm:
                 hx = (hx, hx)
 
-        func = rnn_F.AutogradSkipConnectRNN(num_layers=self.num_layers,
-                                            batch_first=self.batch_first,
-                                            bidirectional=self.bidirectional,
-                                            lstm=self.lstm)
+        func = rnn_F.AutogradSkipConnectRNN(
+            num_layers=self.num_layers,
+            batch_first=self.batch_first,
+            bidirectional=self.bidirectional,
+            lstm=self.lstm,
+        )
         self.reset_noise(batch_size)
 
-        output, hidden = func(input, skip_connect, self.all_cells, hx, None if mask is None else mask.view(mask.size() + (1,)))
+        output, hidden = func(
+            input,
+            skip_connect,
+            self.all_cells,
+            hx,
+            None if mask is None else mask.view(mask.size() + (1,)),
+        )
         return output, hidden
 
     def step(self, input, hx=None, hs=None, mask=None):
-        '''
+        """
         execute one step forward (only for one-directional RNN).
         Args:
             input (batch, model_dim): input tensor of this step.
@@ -69,8 +92,10 @@ class VarSkipRNNBase(nn.Module):
         Returns:
             output (batch, hidden_size): tensor containing the output of this step from the last layer of RNN.
             hn (num_layers, batch, hidden_size): tensor containing the hidden state of this step
-        '''
-        assert not self.bidirectional, "step only cannot be applied to bidirectional RNN."
+        """
+        assert (
+            not self.bidirectional
+        ), "step only cannot be applied to bidirectional RNN."
         batch_size = input.size(0)
         if hx is None:
             hx = input.new_zeros(self.num_layers, batch_size, self.hidden_size)
@@ -413,7 +438,9 @@ class SkipConnectRNNCell(VarRNNCellBase):
 
     """
 
-    def __init__(self, input_size, hidden_size, bias=True, nonlinearity="tanh", p=(0.5, 0.5)):
+    def __init__(
+        self, input_size, hidden_size, bias=True, nonlinearity="tanh", p=(0.5, 0.5)
+    ):
         super(SkipConnectRNNCell, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -425,17 +452,21 @@ class SkipConnectRNNCell(VarRNNCellBase):
             self.bias_ih = Parameter(torch.Tensor(hidden_size))
             self.bias_hh = Parameter(torch.Tensor(hidden_size))
         else:
-            self.register_parameter('bias_ih', None)
-            self.register_parameter('bias_hh', None)
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
 
         self.reset_parameters()
         p_in, p_hidden = p
         if p_in < 0 or p_in > 1:
-            raise ValueError("input dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_in))
+            raise ValueError(
+                "input dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_in)
+            )
         if p_hidden < 0 or p_hidden > 1:
-            raise ValueError("hidden state dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_hidden))
+            raise ValueError(
+                "hidden state dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_hidden)
+            )
         self.p_in = p_in
         self.p_hidden = p_hidden
         self.noise_in = None
@@ -445,8 +476,8 @@ class SkipConnectRNNCell(VarRNNCellBase):
         nn.init.xavier_uniform_(self.weight_hh)
         nn.init.xavier_uniform_(self.weight_ih)
         if self.bias:
-            nn.init.constant_(self.bias_hh, 0.)
-            nn.init.constant_(self.bias_ih, 0.)
+            nn.init.constant_(self.bias_hh, 0.0)
+            nn.init.constant_(self.bias_ih, 0.0)
 
     def reset_noise(self, batch_size):
         if self.training:
@@ -458,7 +489,9 @@ class SkipConnectRNNCell(VarRNNCellBase):
 
             if self.p_hidden:
                 noise = self.weight_hh.new_empty(batch_size, self.hidden_size * 2)
-                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (1.0 - self.p_hidden)
+                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (
+                    1.0 - self.p_hidden
+                )
             else:
                 self.noise_hidden = None
         else:
@@ -471,14 +504,18 @@ class SkipConnectRNNCell(VarRNNCellBase):
         elif self.nonlinearity == "relu":
             func = rnn_F.SkipConnectRNNReLUCell
         else:
-            raise RuntimeError(
-                "Unknown nonlinearity: {}".format(self.nonlinearity))
+            raise RuntimeError("Unknown nonlinearity: {}".format(self.nonlinearity))
 
         return func(
-            input, hx, hs,
-            self.weight_ih, self.weight_hh,
-            self.bias_ih, self.bias_hh,
-            self.noise_in, self.noise_hidden,
+            input,
+            hx,
+            hs,
+            self.weight_ih,
+            self.weight_hh,
+            self.bias_ih,
+            self.bias_hh,
+            self.noise_in,
+            self.noise_hidden,
         )
 
 
@@ -539,17 +576,21 @@ class SkipConnectFastLSTMCell(VarRNNCellBase):
             self.bias_ih = Parameter(torch.Tensor(4 * hidden_size))
             self.bias_hh = Parameter(torch.Tensor(4 * hidden_size))
         else:
-            self.register_parameter('bias_ih', None)
-            self.register_parameter('bias_hh', None)
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
 
         self.reset_parameters()
         p_in, p_hidden = p
         if p_in < 0 or p_in > 1:
-            raise ValueError("input dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_in))
+            raise ValueError(
+                "input dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_in)
+            )
         if p_hidden < 0 or p_hidden > 1:
-            raise ValueError("hidden state dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_hidden))
+            raise ValueError(
+                "hidden state dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_hidden)
+            )
         self.p_in = p_in
         self.p_hidden = p_hidden
         self.noise_in = None
@@ -559,8 +600,8 @@ class SkipConnectFastLSTMCell(VarRNNCellBase):
         nn.init.xavier_uniform_(self.weight_hh)
         nn.init.xavier_uniform_(self.weight_ih)
         if self.bias:
-            nn.init.constant_(self.bias_hh, 0.)
-            nn.init.constant_(self.bias_ih, 0.)
+            nn.init.constant_(self.bias_hh, 0.0)
+            nn.init.constant_(self.bias_ih, 0.0)
 
     def reset_noise(self, batch_size):
         if self.training:
@@ -572,7 +613,9 @@ class SkipConnectFastLSTMCell(VarRNNCellBase):
 
             if self.p_hidden:
                 noise = self.weight_hh.new_empty(batch_size, self.hidden_size * 2)
-                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (1.0 - self.p_hidden)
+                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (
+                    1.0 - self.p_hidden
+                )
             else:
                 self.noise_hidden = None
         else:
@@ -581,10 +624,15 @@ class SkipConnectFastLSTMCell(VarRNNCellBase):
 
     def forward(self, input, hx, hs):
         return rnn_F.SkipConnectFastLSTMCell(
-            input, hx, hs,
-            self.weight_ih, self.weight_hh,
-            self.bias_ih, self.bias_hh,
-            self.noise_in, self.noise_hidden,
+            input,
+            hx,
+            hs,
+            self.weight_ih,
+            self.weight_hh,
+            self.bias_ih,
+            self.bias_hh,
+            self.noise_in,
+            self.noise_hidden,
         )
 
 
@@ -645,17 +693,21 @@ class SkipConnectLSTMCell(VarRNNCellBase):
             self.bias_ih = Parameter(torch.Tensor(4, hidden_size))
             self.bias_hh = Parameter(torch.Tensor(4, hidden_size))
         else:
-            self.register_parameter('bias_ih', None)
-            self.register_parameter('bias_hh', None)
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
 
         self.reset_parameters()
         p_in, p_hidden = p
         if p_in < 0 or p_in > 1:
-            raise ValueError("input dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_in))
+            raise ValueError(
+                "input dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_in)
+            )
         if p_hidden < 0 or p_hidden > 1:
-            raise ValueError("hidden state dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_hidden))
+            raise ValueError(
+                "hidden state dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_hidden)
+            )
         self.p_in = p_in
         self.p_hidden = p_hidden
         self.noise_in = None
@@ -665,8 +717,8 @@ class SkipConnectLSTMCell(VarRNNCellBase):
         nn.init.xavier_uniform_(self.weight_hh)
         nn.init.xavier_uniform_(self.weight_ih)
         if self.bias:
-            nn.init.constant_(self.bias_hh, 0.)
-            nn.init.constant_(self.bias_ih, 0.)
+            nn.init.constant_(self.bias_hh, 0.0)
+            nn.init.constant_(self.bias_ih, 0.0)
 
     def reset_noise(self, batch_size):
         if self.training:
@@ -678,7 +730,9 @@ class SkipConnectLSTMCell(VarRNNCellBase):
 
             if self.p_hidden:
                 noise = self.weight_hh.new_empty(4, batch_size, self.hidden_size * 2)
-                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (1.0 - self.p_hidden)
+                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (
+                    1.0 - self.p_hidden
+                )
             else:
                 self.noise_hidden = None
         else:
@@ -687,10 +741,15 @@ class SkipConnectLSTMCell(VarRNNCellBase):
 
     def forward(self, input, hx, hs):
         return rnn_F.SkipConnectLSTMCell(
-            input, hx, hs,
-            self.weight_ih, self.weight_hh,
-            self.bias_ih, self.bias_hh,
-            self.noise_in, self.noise_hidden,
+            input,
+            hx,
+            hs,
+            self.weight_ih,
+            self.weight_hh,
+            self.bias_ih,
+            self.bias_hh,
+            self.noise_in,
+            self.noise_hidden,
         )
 
 
@@ -744,17 +803,21 @@ class SkipConnectFastGRUCell(VarRNNCellBase):
             self.bias_ih = Parameter(torch.Tensor(3 * hidden_size))
             self.bias_hh = Parameter(torch.Tensor(3 * hidden_size))
         else:
-            self.register_parameter('bias_ih', None)
-            self.register_parameter('bias_hh', None)
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
 
         self.reset_parameters()
         p_in, p_hidden = p
         if p_in < 0 or p_in > 1:
-            raise ValueError("input dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_in))
+            raise ValueError(
+                "input dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_in)
+            )
         if p_hidden < 0 or p_hidden > 1:
-            raise ValueError("hidden state dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_hidden))
+            raise ValueError(
+                "hidden state dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_hidden)
+            )
         self.p_in = p_in
         self.p_hidden = p_hidden
         self.noise_in = None
@@ -764,8 +827,8 @@ class SkipConnectFastGRUCell(VarRNNCellBase):
         nn.init.xavier_uniform_(self.weight_hh)
         nn.init.xavier_uniform_(self.weight_ih)
         if self.bias:
-            nn.init.constant_(self.bias_hh, 0.)
-            nn.init.constant_(self.bias_ih, 0.)
+            nn.init.constant_(self.bias_hh, 0.0)
+            nn.init.constant_(self.bias_ih, 0.0)
 
     def reset_noise(self, batch_size):
         if self.training:
@@ -777,7 +840,9 @@ class SkipConnectFastGRUCell(VarRNNCellBase):
 
             if self.p_hidden:
                 noise = self.weight_hh.new_empty(batch_size, self.hidden_size * 2)
-                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (1.0 - self.p_hidden)
+                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (
+                    1.0 - self.p_hidden
+                )
             else:
                 self.noise_hidden = None
         else:
@@ -786,10 +851,15 @@ class SkipConnectFastGRUCell(VarRNNCellBase):
 
     def forward(self, input, hx, hs):
         return rnn_F.SkipConnectFastGRUCell(
-            input, hx, hs,
-            self.weight_ih, self.weight_hh,
-            self.bias_ih, self.bias_hh,
-            self.noise_in, self.noise_hidden,
+            input,
+            hx,
+            hs,
+            self.weight_ih,
+            self.weight_hh,
+            self.bias_ih,
+            self.bias_hh,
+            self.noise_in,
+            self.noise_hidden,
         )
 
 
@@ -843,17 +913,21 @@ class SkipConnectGRUCell(VarRNNCellBase):
             self.bias_ih = Parameter(torch.Tensor(3, hidden_size))
             self.bias_hh = Parameter(torch.Tensor(3, hidden_size))
         else:
-            self.register_parameter('bias_ih', None)
-            self.register_parameter('bias_hh', None)
+            self.register_parameter("bias_ih", None)
+            self.register_parameter("bias_hh", None)
 
         self.reset_parameters()
         p_in, p_hidden = p
         if p_in < 0 or p_in > 1:
-            raise ValueError("input dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_in))
+            raise ValueError(
+                "input dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_in)
+            )
         if p_hidden < 0 or p_hidden > 1:
-            raise ValueError("hidden state dropout probability has to be between 0 and 1, "
-                             "but got {}".format(p_hidden))
+            raise ValueError(
+                "hidden state dropout probability has to be between 0 and 1, "
+                "but got {}".format(p_hidden)
+            )
         self.p_in = p_in
         self.p_hidden = p_hidden
         self.noise_in = None
@@ -863,8 +937,8 @@ class SkipConnectGRUCell(VarRNNCellBase):
         nn.init.xavier_uniform_(self.weight_hh)
         nn.init.xavier_uniform_(self.weight_ih)
         if self.bias:
-            nn.init.constant_(self.bias_hh, 0.)
-            nn.init.constant_(self.bias_ih, 0.)
+            nn.init.constant_(self.bias_hh, 0.0)
+            nn.init.constant_(self.bias_ih, 0.0)
 
     def reset_noise(self, batch_size):
         if self.training:
@@ -876,7 +950,9 @@ class SkipConnectGRUCell(VarRNNCellBase):
 
             if self.p_hidden:
                 noise = self.weight_hh.new_empty(3, batch_size, self.hidden_size * 2)
-                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (1.0 - self.p_hidden)
+                self.noise_hidden = noise.bernoulli_(1.0 - self.p_hidden) / (
+                    1.0 - self.p_hidden
+                )
             else:
                 self.noise_hidden = None
         else:
@@ -885,8 +961,13 @@ class SkipConnectGRUCell(VarRNNCellBase):
 
     def forward(self, input, hx, hs):
         return rnn_F.SkipConnectGRUCell(
-            input, hx, hs,
-            self.weight_ih, self.weight_hh,
-            self.bias_ih, self.bias_hh,
-            self.noise_in, self.noise_hidden,
+            input,
+            hx,
+            hs,
+            self.weight_ih,
+            self.weight_hh,
+            self.bias_ih,
+            self.bias_hh,
+            self.noise_in,
+            self.noise_hidden,
         )

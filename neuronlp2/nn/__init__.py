@@ -1,4 +1,4 @@
-__author__ = 'max'
+__author__ = "max"
 
 from neuronlp2.nn import init
 from neuronlp2.nn.crf import ChainCRF, TreeCRF

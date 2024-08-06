@@ -1,10 +1,12 @@
-__author__ = 'max'
+__author__ = "max"
 
 import torch
 from torch.nn import functional as F
 
 
-def VarRNNReLUCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def VarRNNReLUCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
     if noise_in is not None:
         input = input * noise_in
     if noise_hidden is not None:
@@ -13,7 +15,9 @@ def VarRNNReLUCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=Non
     return hy
 
 
-def VarRNNTanhCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def VarRNNTanhCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
     if noise_in is not None:
         input = input * noise_in
     if noise_hidden is not None:
@@ -22,13 +26,25 @@ def VarRNNTanhCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=Non
     return hy
 
 
-def VarLSTMCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
-    input = input.expand(4, *input.size()) if noise_in is None else input.unsqueeze(0) * noise_in
+def VarLSTMCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
+    input = (
+        input.expand(4, *input.size())
+        if noise_in is None
+        else input.unsqueeze(0) * noise_in
+    )
 
     hx, cx = hidden
-    hx = hx.expand(4, *hx.size()) if noise_hidden is None else hx.unsqueeze(0) * noise_hidden
+    hx = (
+        hx.expand(4, *hx.size())
+        if noise_hidden is None
+        else hx.unsqueeze(0) * noise_hidden
+    )
 
-    gates = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih) + torch.baddbmm(b_hh.unsqueeze(1), hx, w_hh)
+    gates = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih) + torch.baddbmm(
+        b_hh.unsqueeze(1), hx, w_hh
+    )
 
     ingate, forgetgate, cellgate, outgate = gates
 
@@ -43,7 +59,9 @@ def VarLSTMCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, 
     return hy, cy
 
 
-def VarFastLSTMCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def VarFastLSTMCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -65,9 +83,19 @@ def VarFastLSTMCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=No
     return hy, cy
 
 
-def VarGRUCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
-    input = input.expand(3, *input.size()) if noise_in is None else input.unsqueeze(0) * noise_in
-    hx = hidden.expand(3, *hidden.size()) if noise_hidden is None else hidden.unsqueeze(0) * noise_hidden
+def VarGRUCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
+    input = (
+        input.expand(3, *input.size())
+        if noise_in is None
+        else input.unsqueeze(0) * noise_in
+    )
+    hx = (
+        hidden.expand(3, *hidden.size())
+        if noise_hidden is None
+        else hidden.unsqueeze(0) * noise_hidden
+    )
 
     gi = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih)
     gh = torch.baddbmm(b_hh.unsqueeze(1), hx, w_hh)
@@ -82,7 +110,9 @@ def VarGRUCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, n
     return hy
 
 
-def VarFastGRUCell(input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def VarFastGRUCell(
+    input, hidden, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -134,7 +164,7 @@ def StackedRNN(inners, num_layers, lstm=False):
     total_layers = num_layers * num_directions
 
     def forward(input, hidden, cells, mask):
-        assert (len(cells) == total_layers)
+        assert len(cells) == total_layers
         next_hidden = []
 
         if lstm:
@@ -154,10 +184,12 @@ def StackedRNN(inners, num_layers, lstm=False):
             next_h, next_c = zip(*next_hidden)
             next_hidden = (
                 torch.cat(next_h, 0).view(total_layers, *next_h[0].size()),
-                torch.cat(next_c, 0).view(total_layers, *next_c[0].size())
+                torch.cat(next_c, 0).view(total_layers, *next_c[0].size()),
             )
         else:
-            next_hidden = torch.cat(next_hidden, 0).view(total_layers, *next_hidden[0].size())
+            next_hidden = torch.cat(next_hidden, 0).view(
+                total_layers, *next_hidden[0].size()
+            )
 
         return next_hidden, input
 
@@ -172,9 +204,7 @@ def AutogradVarRNN(num_layers=1, batch_first=False, bidirectional=False, lstm=Fa
     else:
         layer = (rec_factory(),)
 
-    func = StackedRNN(layer,
-                      num_layers,
-                      lstm=lstm)
+    func = StackedRNN(layer, num_layers, lstm=lstm)
 
     def forward(input, cells, hidden, mask):
         if batch_first:
@@ -215,7 +245,7 @@ def VarRNNStep():
 
 def StackedStep(layer, num_layers, lstm=False):
     def forward(input, hidden, cells, mask):
-        assert (len(cells) == num_layers)
+        assert len(cells) == num_layers
         next_hidden = []
 
         if lstm:
@@ -230,10 +260,12 @@ def StackedStep(layer, num_layers, lstm=False):
             next_h, next_c = zip(*next_hidden)
             next_hidden = (
                 torch.cat(next_h, 0).view(num_layers, *next_h[0].size()),
-                torch.cat(next_c, 0).view(num_layers, *next_c[0].size())
+                torch.cat(next_c, 0).view(num_layers, *next_c[0].size()),
             )
         else:
-            next_hidden = torch.cat(next_hidden, 0).view(num_layers, *next_hidden[0].size())
+            next_hidden = torch.cat(next_hidden, 0).view(
+                num_layers, *next_hidden[0].size()
+            )
 
         return next_hidden, input
 
@@ -243,9 +275,7 @@ def StackedStep(layer, num_layers, lstm=False):
 def AutogradVarRNNStep(num_layers=1, lstm=False):
     layer = VarRNNStep()
 
-    func = StackedStep(layer,
-                       num_layers,
-                       lstm=lstm)
+    func = StackedStep(layer, num_layers, lstm=lstm)
 
     def forward(input, cells, hidden, mask):
         nexth, output = func(input, hidden, cells, mask)

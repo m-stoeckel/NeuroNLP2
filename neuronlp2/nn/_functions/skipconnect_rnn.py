@@ -1,10 +1,21 @@
-__author__ = 'max'
+__author__ = "max"
 
 import torch
 from torch.nn import functional as F
 
 
-def SkipConnectRNNReLUCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None, noise_skip=None):
+def SkipConnectRNNReLUCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+    noise_skip=None,
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -16,7 +27,17 @@ def SkipConnectRNNReLUCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_
     return hy
 
 
-def SkipConnectRNNTanhCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def SkipConnectRNNTanhCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -28,14 +49,34 @@ def SkipConnectRNNTanhCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_
     return hy
 
 
-def SkipConnectLSTMCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
-    input = input.expand(4, *input.size()) if noise_in is None else input.unsqueeze(0) * noise_in
+def SkipConnectLSTMCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+):
+    input = (
+        input.expand(4, *input.size())
+        if noise_in is None
+        else input.unsqueeze(0) * noise_in
+    )
 
     hx, cx = hidden
     hx = torch.cat([hx, hidden_skip], dim=1)
-    hx = hx.expand(4, *hx.size()) if noise_hidden is None else hx.unsqueeze(0) * noise_hidden
+    hx = (
+        hx.expand(4, *hx.size())
+        if noise_hidden is None
+        else hx.unsqueeze(0) * noise_hidden
+    )
 
-    gates = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih) + torch.baddbmm(b_hh.unsqueeze(1), hx, w_hh)
+    gates = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih) + torch.baddbmm(
+        b_hh.unsqueeze(1), hx, w_hh
+    )
 
     ingate, forgetgate, cellgate, outgate = gates
 
@@ -50,7 +91,17 @@ def SkipConnectLSTMCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=
     return hy, cy
 
 
-def SkipConnectFastLSTMCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def SkipConnectFastLSTMCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -74,10 +125,28 @@ def SkipConnectFastLSTMCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b
     return hy, cy
 
 
-def SkipConnectGRUCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
-    input = input.expand(3, *input.size()) if noise_in is None else input.unsqueeze(0) * noise_in
+def SkipConnectGRUCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+):
+    input = (
+        input.expand(3, *input.size())
+        if noise_in is None
+        else input.unsqueeze(0) * noise_in
+    )
     hx = torch.cat([hidden, hidden_skip], dim=1)
-    hx = hx.expand(3, *hx.size()) if noise_hidden is None else hx.unsqueeze(0) * noise_hidden
+    hx = (
+        hx.expand(3, *hx.size())
+        if noise_hidden is None
+        else hx.unsqueeze(0) * noise_hidden
+    )
 
     gi = torch.baddbmm(b_ih.unsqueeze(1), input, w_ih)
     gh = torch.baddbmm(b_hh.unsqueeze(1), hx, w_hh)
@@ -92,7 +161,17 @@ def SkipConnectGRUCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=N
     return hy
 
 
-def SkipConnectFastGRUCell(input, hidden, hidden_skip, w_ih, w_hh, b_ih=None, b_hh=None, noise_in=None, noise_hidden=None):
+def SkipConnectFastGRUCell(
+    input,
+    hidden,
+    hidden_skip,
+    w_ih,
+    w_hh,
+    b_ih=None,
+    b_hh=None,
+    noise_in=None,
+    noise_hidden=None,
+):
     if noise_in is not None:
         input = input * noise_in
 
@@ -163,11 +242,13 @@ def StackedRNN(inners, num_layers, lstm=False):
         return skip_connect
 
     def forward(input, skip_connect, hidden, cells, mask):
-        assert (len(cells) == total_layers)
+        assert len(cells) == total_layers
         next_hidden = []
 
         skip_connect_forward = skip_connect
-        skip_connec_backward = reverse_skip_connection(skip_connect) if num_directions == 2 else None
+        skip_connec_backward = (
+            reverse_skip_connection(skip_connect) if num_directions == 2 else None
+        )
 
         if lstm:
             hidden = list(zip(*hidden))
@@ -187,17 +268,21 @@ def StackedRNN(inners, num_layers, lstm=False):
             next_h, next_c = zip(*next_hidden)
             next_hidden = (
                 torch.cat(next_h, 0).view(total_layers, *next_h[0].size()),
-                torch.cat(next_c, 0).view(total_layers, *next_c[0].size())
+                torch.cat(next_c, 0).view(total_layers, *next_c[0].size()),
             )
         else:
-            next_hidden = torch.cat(next_hidden, 0).view(total_layers, *next_hidden[0].size())
+            next_hidden = torch.cat(next_hidden, 0).view(
+                total_layers, *next_hidden[0].size()
+            )
 
         return next_hidden, input
 
     return forward
 
 
-def AutogradSkipConnectRNN(num_layers=1, batch_first=False, bidirectional=False, lstm=False):
+def AutogradSkipConnectRNN(
+    num_layers=1, batch_first=False, bidirectional=False, lstm=False
+):
     rec_factory = SkipConnectRecurrent
 
     if bidirectional:
@@ -205,9 +290,7 @@ def AutogradSkipConnectRNN(num_layers=1, batch_first=False, bidirectional=False,
     else:
         layer = (rec_factory(),)
 
-    func = StackedRNN(layer,
-                      num_layers,
-                      lstm=lstm)
+    func = StackedRNN(layer, num_layers, lstm=lstm)
 
     def forward(input, skip_connect, cells, hidden, mask):
         if batch_first:
@@ -249,7 +332,7 @@ def SkipConnectStep():
 
 def StackedStep(layer, num_layers, lstm=False):
     def forward(input, hidden, hidden_skip, cells, mask):
-        assert (len(cells) == num_layers)
+        assert len(cells) == num_layers
         next_hidden = []
 
         if lstm:
@@ -264,10 +347,12 @@ def StackedStep(layer, num_layers, lstm=False):
             next_h, next_c = zip(*next_hidden)
             next_hidden = (
                 torch.cat(next_h, 0).view(num_layers, *next_h[0].size()),
-                torch.cat(next_c, 0).view(num_layers, *next_c[0].size())
+                torch.cat(next_c, 0).view(num_layers, *next_c[0].size()),
             )
         else:
-            next_hidden = torch.cat(next_hidden, 0).view(num_layers, *next_hidden[0].size())
+            next_hidden = torch.cat(next_hidden, 0).view(
+                num_layers, *next_hidden[0].size()
+            )
 
         return next_hidden, input
 
@@ -277,9 +362,7 @@ def StackedStep(layer, num_layers, lstm=False):
 def AutogradSkipConnectStep(num_layers=1, lstm=False):
     layer = SkipConnectStep()
 
-    func = StackedStep(layer,
-                       num_layers,
-                       lstm=lstm)
+    func = StackedStep(layer, num_layers, lstm=lstm)
 
     def forward(input, cells, hidden, hidden_skip, mask):
         nexth, output = func(input, hidden, hidden_skip, cells, mask)
