@@ -1,4 +1,4 @@
-__author__ = "max"
+__author__ = "max; modified by Manuel Stoeckel"
 
 from overrides import overrides
 import numpy as np
@@ -919,8 +919,8 @@ class StackPtrNet(nn.Module):
             # [batch, num_hyp]
             hypothesis_scores = hypothesis_scores[:, :num_hyp]
             hyp_index = hyp_index[:, :num_hyp]
-            base_index = hyp_index / max_len
-            child_index = hyp_index % max_len
+            base_index = (hyp_index / max_len).to(torch.int64)
+            child_index = (hyp_index % max_len).to(torch.int64)
 
             # [batch, num_hyp]
             hyp_heads = curr_heads.gather(dim=1, index=base_index)

@@ -1,4 +1,4 @@
-__author__ = "max"
+__author__ = "max; modified by Manuel Stoeckel"
 
 from neuronlp2.io.instance import DependencyInstance, NERInstance
 from neuronlp2.io.instance import Sentence
@@ -19,28 +19,32 @@ class CoNLLXReader(object):
     def __init__(
         self, file_path, word_alphabet, char_alphabet, pos_alphabet, type_alphabet
     ):
-        self.__source_file = open(file_path, "r")
+        file = open(file_path, "r") if isinstance(file_path, str) else file_path
+        lines = file.readlines()
+        self.__source_file = iter(lines)
         self.__word_alphabet = word_alphabet
         self.__char_alphabet = char_alphabet
         self.__pos_alphabet = pos_alphabet
         self.__type_alphabet = type_alphabet
 
     def close(self):
-        self.__source_file.close()
+        # self.__source_file.close()
+        pass
 
     def getNext(self, normalize_digits=True, symbolic_root=False, symbolic_end=False):
-        line = self.__source_file.readline()
-        # skip multiple blank lines.
-        while len(line) > 0 and len(line.strip()) == 0:
-            line = self.__source_file.readline()
-        if len(line) == 0:
-            return None
+        try:
+            line = next(self.__source_file)
+            # skip multiple blank lines.
+            while len(line) > 0 and len(line.strip()) == 0:
+                line = next(self.__source_file)
 
-        lines = []
-        while len(line.strip()) > 0:
-            line = line.strip()
-            lines.append(line.split("\t"))
-            line = self.__source_file.readline()
+            lines = []
+            while len(line.strip()) > 0:
+                line = line.strip()
+                lines.append(line.split("\t"))
+                line = next(self.__source_file)
+        except StopIteration:
+            return None
 
         length = len(lines)
         if length == 0:
@@ -89,7 +93,7 @@ class CoNLLXReader(object):
 
             word = DIGIT_RE.sub("0", tokens[1]) if normalize_digits else tokens[1]
             pos = tokens[4]
-            head = int(tokens[6])
+            head = int(tokens[6]) if tokens[6].isdigit() else 0
             type = tokens[7]
 
             words.append(word)

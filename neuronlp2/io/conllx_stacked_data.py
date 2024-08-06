@@ -1,29 +1,30 @@
-__author__ = "max"
+__author__ = "max; modified by Manuel Stoeckel"
 
 import numpy as np
 import torch
-from neuronlp2.io.reader import CoNLLXReader
-from neuronlp2.io.conllx_data import _buckets, NUM_SYMBOLIC_TAGS, create_alphabets
-from neuronlp2.io.common import DIGIT_RE, MAX_CHAR_LENGTH, UNK_ID
+
 from neuronlp2.io.common import (
-    PAD_CHAR,
-    PAD,
-    PAD_POS,
-    PAD_TYPE,
-    PAD_ID_CHAR,
-    PAD_ID_TAG,
-    PAD_ID_WORD,
-)
-from neuronlp2.io.common import (
-    ROOT,
+    DIGIT_RE,
     END,
-    ROOT_CHAR,
-    ROOT_POS,
-    ROOT_TYPE,
     END_CHAR,
     END_POS,
     END_TYPE,
+    MAX_CHAR_LENGTH,
+    PAD,
+    PAD_CHAR,
+    PAD_ID_CHAR,
+    PAD_ID_TAG,
+    PAD_ID_WORD,
+    PAD_POS,
+    PAD_TYPE,
+    ROOT,
+    ROOT_CHAR,
+    ROOT_POS,
+    ROOT_TYPE,
+    UNK_ID,
 )
+from neuronlp2.io.conllx_data import NUM_SYMBOLIC_TAGS, _buckets, create_alphabets
+from neuronlp2.io.reader import CoNLLXReader
 
 
 def _obtain_child_index_for_left2right(heads):
@@ -70,7 +71,9 @@ def _obtain_child_index_for_depth(heads, reverse):
     ]
 
 
-def _generate_stack_inputs(heads, types, prior_order):
+def _generate_stack_inputs(
+    heads, types, prior_order
+) -> tuple[list[int], list[int], list[int], list[int], list[int]]:
     if prior_order == "deep_first":
         child_ids = _obtain_child_index_for_depth(heads, True)
     elif prior_order == "shallow_first":

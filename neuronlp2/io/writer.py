@@ -1,4 +1,4 @@
-__author__ = "max"
+__author__ = "max; modified by Manuel Stoeckel"
 
 
 class CoNLL03Writer(object):
@@ -68,8 +68,15 @@ class POSWriter(object):
 
 
 class CoNLLXWriter(object):
-    def __init__(self, word_alphabet, char_alphabet, pos_alphabet, type_alphabet):
-        self.__source_file = None
+    def __init__(
+        self,
+        word_alphabet,
+        char_alphabet,
+        pos_alphabet,
+        type_alphabet,
+        file: None = None,
+    ):
+        self.__source_file = file
         self.__word_alphabet = word_alphabet
         self.__char_alphabet = char_alphabet
         self.__pos_alphabet = pos_alphabet
@@ -77,6 +84,9 @@ class CoNLLXWriter(object):
 
     def start(self, file_path):
         self.__source_file = open(file_path, "w")
+
+    def set(self, writer):
+        self.__source_file = writer
 
     def close(self):
         self.__source_file.close()
